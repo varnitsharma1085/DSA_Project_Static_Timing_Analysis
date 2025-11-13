@@ -1,0 +1,18 @@
+# Simple Circuit Example for Static Timing Analysis
+# This file defines a basic combinational circuit with various gates
+
+# Clock period in nanoseconds
+CLOCK_PERIOD 1.0
+
+# Primary inputs
+INPUT A B C
+
+# Primary outputs  
+OUTPUT F
+
+# Gate definitions
+# Format: GATE <type> <gate_name> <output> <input1> <input2> ...
+# Circuit: (A AND B) OR (A AND C) -> F
+GATE AND AND1 temp1 A B
+GATE AND AND2 temp2 A C
+GATE OR OR1 F temp1 temp2
