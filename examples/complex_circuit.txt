@@ -1,0 +1,29 @@
+# Complex Circuit Example for Static Timing Analysis
+# This file defines a more complex circuit with multiple paths and gates
+
+# Clock period in nanoseconds
+CLOCK_PERIOD 2.0
+
+# Primary inputs
+INPUT A B C D E
+
+# Primary outputs
+OUTPUT F G
+
+# Gate definitions
+# First path: A -> AND1 -> OR1 -> F
+GATE AND AND1 temp1 A B
+GATE OR OR1 temp2 temp1 C
+GATE NOT NOT1 F temp2
+
+# Second path: B -> XOR1 -> NAND1 -> G
+GATE XOR XOR1 temp3 B C
+GATE NAND NAND1 temp4 temp3 D
+GATE NOR NOR1 temp5 temp4 E
+GATE XNOR XNOR1 G temp5 temp1
+
+# Additional gates for more complex timing
+GATE MUX2TO1 MUX1 temp6 A B C
+GATE HALF_ADDER HA1 temp7 temp6 D
+GATE FULL_ADDER FA1 temp8 temp7 E temp1
+GATE MUX_SWITCH MS1 temp9 temp8 C

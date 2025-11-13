@@ -1,0 +1,30 @@
+# 4-bit Adder Circuit Example
+# This demonstrates a more realistic circuit with multiple paths
+
+# Clock period in nanoseconds
+CLOCK_PERIOD 1.5
+
+# Primary inputs (4-bit inputs A and B, plus carry-in)
+INPUT A0 A1 A2 A3 B0 B1 B2 B3 CIN
+
+# Primary outputs (4-bit sum and carry-out)
+OUTPUT S0 S1 S2 S3 COUT
+
+# 4-bit adder using full adders
+# Bit 0
+GATE FULL_ADDER FA0 temp_c0 S0 A0 B0 CIN
+
+# Bit 1  
+GATE FULL_ADDER FA1 temp_c1 S1 A1 B1 temp_c0
+
+# Bit 2
+GATE FULL_ADDER FA2 temp_c2 S2 A2 B2 temp_c1
+
+# Bit 3
+GATE FULL_ADDER FA3 COUT S3 A3 B3 temp_c2
+
+# Additional logic for demonstration
+GATE XOR XOR1 temp_xor A0 B0
+GATE AND AND1 temp_and A1 B1
+GATE OR OR1 temp_or A2 B2
+GATE NAND NAND1 temp_nand A3 B3
