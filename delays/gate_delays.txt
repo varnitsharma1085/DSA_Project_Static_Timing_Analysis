@@ -1,0 +1,25 @@
+# Gate Delay Configuration File
+# Format: <gate_type> <delay_in_nanoseconds>
+
+# Basic logic gates
+AND 0.1
+OR 0.12
+XOR 0.15
+NAND 0.08
+NOR 0.09
+XNOR 0.16
+NOT 0.05
+
+# Arithmetic gates
+HALF_ADDER 0.2
+FULL_ADDER 0.25
+
+# Multiplexers
+MUX2TO1 0.18
+MUX_SWITCH 0.14
+
+# Additional timing parameters (for future enhancement)
+# Setup time for flip-flops (if added later)
+# SETUP_TIME 0.1
+# Hold time for flip-flops (if added later)  
+# HOLD_TIME 0.05
