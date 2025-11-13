@@ -466,3 +466,233 @@ void TimingAnalyzer::findPathsRecursive(const string& currentNode,
     visited[currentNode] = false;
     currentPath.pop_back();
 }
+
+double TimingAnalyzer::calculatePathDelay(const vector<string>& path) const {
+    double totalDelay = 0.0;
+    
+    for (size_t i = 0; i < path.size() - 1; ++i) {
+        auto node = circuit.getNode(path[i]);
+        if (!node) continue;
+        
+        for (const auto& gate : node->getFanouts()) {
+            if (gate->getOutput() == path[i + 1]) {
+                totalDelay += circuit.getGateDelay(gate->getType());
+                break;
+            }
+        }
+    }
+    
+    return totalDelay;
+}
+
+void TimingAnalyzer::findCriticalPaths() {
+    criticalPaths.clear();
+    
+    for (const auto& path : allPaths) {
+        if (path.isCritical) {
+            criticalPaths.push_back(path);
+        }
+    }
+    
+    // Sort by slack (most critical first)
+    sort(criticalPaths.begin(), criticalPaths.end(),
+              [](const TimingPath& a, const TimingPath& b) {
+                  return a.slack < b.slack;
+              });
+}
+
+void TimingAnalyzer::calculateTotalDelay() {
+    totalDelay = 0.0;
+    
+    for (const auto& path : allPaths) {
+        totalDelay = max(totalDelay, path.totalDelay);
+    }
+}
+
+void TimingAnalyzer::calculateSlewTimes() {
+    // Simple slew calculation 
+    for (const auto& nodePair : circuit.getNodes()) {
+        auto node = nodePair.second;
+        double arrivalTime = node->getMaxArrivalTime();
+        node->setSlewRise(arrivalTime * 0.1); // 10% of arrival time
+        node->setSlewFall(arrivalTime * 0.1);
+    }
+}
+
+void TimingAnalyzer::calculateCapacitance() {
+    for (const auto& nodePair : circuit.getNodes()) {
+        auto node = nodePair.second;
+        double capacitance = 1.0 + node->getFanouts().size() * 0.5;
+        node->setCapacitance(capacitance);
+    }
+}
+
+void TimingAnalyzer::calculateFanoutCounts() {
+    for (const auto& nodePair : circuit.getNodes()) {
+        auto node = nodePair.second;
+        node->setFanoutCount(node->getFanouts().size());
+    }
+}
+
+
+
+void TimingAnalyzer::updateWorstSlack() {
+    worstSlack = 0.0;
+    
+    for (const auto& slackPair : slackTimes) {
+        worstSlack = min(worstSlack, slackPair.second);
+    }
+}
+
+void TimingAnalyzer::resetAnalysis() {
+    allPaths.clear();
+    criticalPaths.clear();
+    arrivalTimes.clear();
+    requiredTimes.clear();
+    slackTimes.clear();
+    worstSlack = 0.0;
+    totalDelay = 0.0;
+    
+    // Reset node timing
+    for (const auto& nodePair : circuit.getNodes()) {
+        nodePair.second->resetTiming();
+    }
+}
+
+bool TimingAnalyzer::isTimingViolation() const {
+    return worstSlack < 0.0;
+}
+
+void TimingAnalyzer::generateReport(const string& filename) {
+    ofstream file(filename);
+    if (!file.is_open()) {
+        throw runtime_error("Cannot create report file: " + filename);
+    }
+    
+    file << fixed << setprecision(3);
+    file << "===========================================" << endl;
+    file << "        STATIC TIMING ANALYSIS REPORT" << endl;
+    file << "===========================================" << endl;
+    file << endl;
+    
+    // Summary
+    file << "SUMMARY:" << endl;
+    file << "--------" << endl;
+    file << "Clock Period: " << circuit.getClockPeriod() << " ns" << endl;
+    file << "Total Delay: " << totalDelay << " ns" << endl;
+    file << "Worst Slack: " << worstSlack << " ns" << endl;
+    file << "Timing Violation: " << (isTimingViolation() ? "YES" : "NO") << endl;
+    file << "Number of Paths: " << allPaths.size() << endl;
+    file << "Critical Paths: " << criticalPaths.size() << endl;
+    file << endl;
+    
+    // Node timing information
+    file << "NODE TIMING INFORMATION:" << endl;
+    file << "-----------------------" << endl;
+    for (const auto& nodePair : circuit.getNodes()) {
+        const string& name = nodePair.first;
+        auto node = nodePair.second;
+        
+        file << "Node: " << name << endl;
+        file << "  Arrival Time: " << node->getMaxArrivalTime() << " ns" << endl;
+        file << "  Required Time: " << node->getMinRequiredTime() << " ns" << endl;
+        file << "  Slack: " << node->getWorstSlack() << " ns" << endl;
+        file << "  Slew: " << node->getSlewRise() << " ns" << endl;
+        file << "  Capacitance: " << node->getCapacitance() << " fF" << endl;
+        file << "  Fanout: " << node->getFanoutCount() << endl;
+        file << endl;
+    }
+    
+    // Critical paths
+    if (!criticalPaths.empty()) {
+        file << "CRITICAL PATHS:" << endl;
+        file << "---------------" << endl;
+        for (size_t i = 0; i < criticalPaths.size(); ++i) {
+            const auto& path = criticalPaths[i];
+            file << "Path " << (i + 1) << " (Slack: " << path.slack << " ns):" << endl;
+            for (size_t j = 0; j < path.nodes.size(); ++j) {
+                file << "  " << path.nodes[j];
+                if (j < path.nodes.size() - 1) file << " -> ";
+            }
+            file << endl;
+            file << "  Total Delay: " << path.totalDelay << " ns" << endl;
+            file << endl;
+        }
+    }
+    
+    file.close();
+}
+
+void TimingAnalyzer::printSummary() {
+    cout << fixed << setprecision(3);
+    cout << "\n=== TIMING ANALYSIS SUMMARY ===" << endl;
+    cout << "Clock Period: " << circuit.getClockPeriod() << " ns" << endl;
+    cout << "Total Delay: " << totalDelay << " ns" << endl;
+    cout << "Worst Slack: " << worstSlack << " ns" << endl;
+    cout << "Timing Violation: " << (isTimingViolation() ? "YES" : "NO") << endl;
+    cout << "Number of Paths: " << allPaths.size() << endl;
+    cout << "Critical Paths: " << criticalPaths.size() << endl;
+    
+    if (!criticalPaths.empty()) {
+        cout << "\nMost Critical Path:" << endl;
+        printTimingPath(criticalPaths[0]);
+    }
+}
+
+void TimingAnalyzer::printDetailedReport() {
+    printSummary();
+    
+    cout << "\n=== DETAILED NODE TIMING ===" << endl;
+    for (const auto& nodePair : circuit.getNodes()) {
+        nodePair.second->printTiming();
+        cout << endl;
+    }
+}
+
+void TimingAnalyzer::printTimingPath(const TimingPath& path) const {
+    cout << "Path (Slack: " << path.slack << " ns): ";
+    for (size_t i = 0; i < path.nodes.size(); ++i) {
+        cout << path.nodes[i];
+        if (i < path.nodes.size() - 1) cout << " -> ";
+    }
+    cout << " (Delay: " << path.totalDelay << " ns)" << endl;
+}
+
+// ============================================================================
+// MAIN FUNCTION
+// ============================================================================
+
+int main() {
+    // Hardcoded file paths - we can change these to use different input files
+    string circuitFile = "../examples/complex_circuit.txt";
+    string delayFile = "../delays/gate_delays.txt";
+    string outputFile = "../reports/timing_report.txt";
+    // Create circuit and load configuration
+   
+    try {
+        // Creating circuit and load configuration
+        Circuit circuit;
+        circuit.loadCircuit(circuitFile);
+        circuit.loadDelays(delayFile);
+
+        // Creating timing analyzer
+        TimingAnalyzer analyzer(circuit);
+
+        // Performing timing analysis
+        cout << "Performing Static Timing Analysis..." << endl;
+        analyzer.analyze();
+
+        // Generating timing report
+        analyzer.generateReport(outputFile);
+        cout << "Timing analysis completed. Report saved to: " << outputFile << endl;
+
+        // Printing summary to console
+        analyzer.printSummary();
+
+    } catch (const exception& e) {
+        cerr << "Error: " << e.what() << endl;
+        return 1;
+    }
+
+    return 0;
+}
